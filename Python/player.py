@@ -1,18 +1,19 @@
 import pygame
 import numpy as np
 
-PLAYER_GRAVITY = 700
-PLAYER_RADIUS = 30
-PLAYER_PUSHBACK = 200
-PLAYER_JUMP_FORCE = 700
+PLAYER_WALL_COLLISION_SLOWDOWN = 0.7
 
 
 class Player:
-    def __init__(self, x, y, radius, game):
+    mass = 1.5
+    gravity = 750
+    radius = 30
+    jump_force = 750
+
+    def __init__(self, x, y, game):
         self.pos = np.array([x, y], dtype=float)
         self.vel = np.array([0, 0], dtype=float)
-        self.acc = np.array([0, PLAYER_GRAVITY], dtype=float)
-        self.radius = radius
+        self.acc = np.array([0, Player.gravity], dtype=float)
         self.game = game
 
     def update(self):
@@ -21,32 +22,22 @@ class Player:
         self.check_boundaries()
 
     def check_boundaries(self):
-        if self.pos[0] + self.radius >= self.game.width:
-            self.pos[0] = self.game.width - self.radius
-            self.vel[0] *= -0.8
-        if self.pos[0] - self.radius <= 0:
-            self.pos[0] = self.radius
-            self.vel[0] *= -0.8
-        if self.pos[1] - self.radius <= 0:
-            self.pos[1] = self.radius
-            self.vel[1] *= -0.8
-
-    def check_collision(self, basketball):
-        distance = np.linalg.norm(self.pos - basketball.pos)
-        if distance <= self.radius + basketball.radius:
-            self.handle_collision(basketball)
-
-    def handle_collision(self, basketball):
-        direction = self.pos - basketball.pos
-        direction = direction / np.linalg.norm(direction)  # Normalize the vector
-        self.vel = -direction * PLAYER_PUSHBACK
+        if self.pos[0] + Player.radius >= self.game.width:
+            self.pos[0] = self.game.width - Player.radius
+            self.vel[0] *= -PLAYER_WALL_COLLISION_SLOWDOWN
+        if self.pos[0] - Player.radius <= 0:
+            self.pos[0] = Player.radius
+            self.vel[0] *= -PLAYER_WALL_COLLISION_SLOWDOWN
+        if self.pos[1] - Player.radius <= 0:
+            self.pos[1] = Player.radius
+            self.vel[1] *= -PLAYER_WALL_COLLISION_SLOWDOWN
 
     def push(self, target_pos):
         direction = target_pos - self.pos
         direction = direction / np.linalg.norm(direction)  # Normalize the vector
-        self.vel = direction * PLAYER_JUMP_FORCE
+        self.vel = direction * Player.jump_force
 
     def draw(self, surface):
         pygame.draw.circle(
-            surface, (0, 0, 255), (int(self.pos[0]), int(self.pos[1])), self.radius
+            surface, (0, 255, 0), (int(self.pos[0]), int(self.pos[1])), Player.radius
         )
