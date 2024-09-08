@@ -1,13 +1,12 @@
 import pygame
 import numpy as np
 
-BASKETBALL_WALL_COLLISION_SLOWDOWN = 0.7
-
 
 class BasketBall:
     mass = 1
     gravity = 500
     radius = 20
+    wall_collision_slowdown = 0.7
 
     def __init__(self, x, y, game):
         self.pos = np.array([x, y], dtype=float)
@@ -23,13 +22,13 @@ class BasketBall:
     def check_boundaries(self):
         if self.pos[0] + BasketBall.radius >= self.game.width:
             self.pos[0] = self.game.width - BasketBall.radius
-            self.vel[0] *= -BASKETBALL_WALL_COLLISION_SLOWDOWN
+            self.vel[0] *= -BasketBall.wall_collision_slowdown
         if self.pos[0] - BasketBall.radius <= 0:
             self.pos[0] = BasketBall.radius
-            self.vel[0] *= -BASKETBALL_WALL_COLLISION_SLOWDOWN
+            self.vel[0] *= -BasketBall.wall_collision_slowdown
         if self.pos[1] - BasketBall.radius <= 0:
             self.pos[1] = BasketBall.radius
-            self.vel[1] *= -BASKETBALL_WALL_COLLISION_SLOWDOWN
+            self.vel[1] *= -BasketBall.wall_collision_slowdown
 
     def draw(self, surface):
         pygame.draw.circle(

@@ -2,16 +2,16 @@ from statistics import mean
 import pygame
 import numpy as np
 from player import Player
-from ball import BasketBall
+from basketball import BasketBall
+from AIs.simple_ai import simple_ai
 
 # Initialize Pygame
 pygame.init()
 
 # Constants
 WIDTH, HEIGHT = 800, 600
-FPS_TARGET = 60
 BALLS_COLLISION_SLOWDOWN = 0.8
-FIXED_DT = 1 / FPS_TARGET
+
 STATS_FONT = pygame.font.Font(None, 20)
 SCORE_FONT = pygame.font.Font(None, 60)
 # It's better to fix the delta time for AI training for a better consistency
@@ -19,39 +19,29 @@ SCORE_FONT = pygame.font.Font(None, 60)
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, fps=60):
         self.width = WIDTH
         self.height = HEIGHT
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("BasketBall AI")
-        self.clock = pygame.time.Clock()
-        self.running = True
 
         # Initialize game objects
         self.player = Player(self.width // 2, self.height // 2, self)
         self.basketball = BasketBall(self.width // 2, 50, self)
 
         # Game Constants
-        self.dt = FIXED_DT
+        self.fps = fps
+        self.dt = 1 / fps
         self.width = WIDTH
 
-        # Stats
-        self.speed = []
-        self.current_fps = []
-        self.frame_counter = 0
+        # Stats History
+        self.speed_history = []
+        self.fps_history = []
+        self.moves_counter = 0
 
         # Score
         self.score = 0
+        self.is_gameover = False
 
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = np.array(pygame.mouse.get_pos(), dtype=float)
-                self.player.push(mouse_pos)
-
-    def update(self, dt):
+    def update(self):
         if self.check_collision():
             self.handle_collison()
             self.resolve_overlap()
@@ -59,13 +49,22 @@ class Game:
         self.player.update()
         self.basketball.update()
 
-        speed = 1000 * FIXED_DT / dt if dt else 0
-        self.speed.append(speed)
-        current_fps = 1000 / dt if dt else 0
-        self.current_fps.append(current_fps)
-        if len(self.speed) > current_fps:
-            self.speed = self.speed[-max(int(current_fps), 1):]
-            self.current_fps = self.current_fps[-max(int(current_fps), 1):]
+        # speed = 1000 * self.dt / dt if dt else 0
+        # self.speed.append(speed)
+        # current_fps = 1000 / dt if dt else 0
+        # self.current_fps.append(current_fps)
+        #
+
+    def update_stats(self, real_dt):
+        real_fps = 1000 / real_dt
+        self.fps_history.append(real_fps)
+        speed = real_fps / self.fps
+        self.speed_history.append(speed)
+
+        capping_limit = 5 * real_fps
+        if len(self.speed_history) > capping_limit:
+            self.speed_history = self.speed_history[-max(int(capping_limit), 1) :]
+            self.fps_history = self.fps_history[-max(int(capping_limit), 1) :]
 
     def check_collision(self):
         distance = np.linalg.norm(self.player.pos - self.basketball.pos)
@@ -113,29 +112,39 @@ class Game:
         self.basketball.vel = new_ball_vel
 
     def render_game(self):
-        self.screen.fill((125, 125, 125))
-        self.basketball.draw(self.screen)
-        self.player.draw(self.screen)
+        game_screen = pygame.Surface((WIDTH, HEIGHT))
+        game_screen.fill((125, 125, 125))
+        self.basketball.draw(game_screen)
+        self.player.draw(game_screen)
+        return game_screen
 
-    def render_ui(self):
+    def render_ui(self, game_speed):
+        ui_canvas = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+
         # Render speed and FPS in smaller font
-        self.screen.blit(
+        ui_canvas.blit(
             STATS_FONT.render(
-                f"Speed: {round(mean(self.speed) * 100)}%", True, "White"
+                f"Speed: {round(mean(self.speed_history) * 100)}%", True, "White"
             ),
             (10, 10),
         )
-        self.screen.blit(
-            STATS_FONT.render(f"FPS: {round(mean(self.current_fps))}", True, "White"),
+        ui_canvas.blit(
+            STATS_FONT.render(
+                f"Target Speed: {round(game_speed * 100)}%", True, "White"
+            ),
             (10, 30),
         )
-        self.screen.blit(
-            STATS_FONT.render(f"FPS Target: {FPS_TARGET}", True, "White"),
+        ui_canvas.blit(
+            STATS_FONT.render(f"FPS: {round(mean(self.fps_history))}", True, "White"),
             (10, 50),
         )
-        self.screen.blit(
-            STATS_FONT.render(f"Frame Counter: {self.frame_counter}", True, "White"),
+        ui_canvas.blit(
+            STATS_FONT.render(f"FPS Target: {self.fps}", True, "White"),
             (10, 70),
+        )
+        ui_canvas.blit(
+            STATS_FONT.render(f"Frame Counter: {self.moves_counter}", True, "White"),
+            (10, 90),
         )
 
         # Render score in larger font, centered at the top of the screen
@@ -143,21 +152,100 @@ class Game:
         score_rect = score_text.get_rect(
             midtop=(self.width // 2, 10)
         )  # Centered at the top
-        self.screen.blit(score_text, score_rect)
+        ui_canvas.blit(score_text, score_rect)
 
-    def run(self):
-        while self.running:
-            dt = self.clock.tick(FPS_TARGET)
-            self.handle_events()
-            self.update(dt)
-            self.render_game()
-            self.render_ui()
-            pygame.display.update()
-            self.frame_counter += 1
+        return ui_canvas
 
-        pygame.quit()
+    def play_move(self, command):
+        if command != "NO JUMP":
+            x, y = map(float, command.split())
+            self.player.push((x, y))
+        self.update()
+        self.moves_counter += 1
+
+    def fetch_data(self):
+        return [
+            self.player.pos[0],
+            self.player.pos[1],
+            self.player.vel[0],
+            self.player.vel[1],
+            self.basketball.pos[0],
+            self.basketball.pos[1],
+            self.basketball.vel[0],
+            self.basketball.vel[1],
+        ]
+
+    def gameover(self):
+        self.is_gameover = True
+
+
+def play(game, window, game_speed=1):
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        # CLOCK HANDELING
+        real_dt = clock.tick(60 * game_speed)
+        game.update_stats(real_dt)
+
+        # EVENT HANDELING
+        was_mouse_clicked = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                was_mouse_clicked = True
+
+        # HUMAN CONTROLS
+        mouse_pos = np.array(pygame.mouse.get_pos(), dtype=float)
+        if was_mouse_clicked:
+            game.play_move(f"{mouse_pos[0]} {mouse_pos[1]}")
+        else:
+            game.play_move("NO JUMP")
+
+        # RENDER
+        window.blit(game.render_game(), (0, 0))
+        window.blit(game.render_ui(game_speed), (0, 0))
+        pygame.display.update()
+
+
+def watch_ai_play(game, ai_script, window, game_speed=1):
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        # CLOCK HANDELING
+        real_dt = clock.tick(60 * game_speed)
+        game.update_stats(real_dt)
+
+        # EVENT HANDELING
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # AI CONTROLS
+        game.play_move(ai_script(game.fetch_data()))
+
+        # RENDER
+        window.blit(game.render_game(), (0, 0))
+        window.blit(game.render_ui(game_speed), (0, 0))
+        pygame.display.update()
+
+
+def main():
+    window = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("BasketBall AI")
+
+    mode = "human"  # 'ai'
+
+    if mode == "human":
+        # Create a new game and play it with human controls
+        new_game = Game()
+        play(new_game, window, game_speed=1)
+    elif mode == "ai":
+        # Watch an AI play a new game based on ai_functino
+        ai_function = simple_ai
+        new_game = Game()
+        watch_ai_play(new_game, ai_function, window)
 
 
 if __name__ == "__main__":
-    game = Game()
-    game.run()
+    main()

@@ -1,14 +1,13 @@
 import pygame
 import numpy as np
 
-PLAYER_WALL_COLLISION_SLOWDOWN = 0.7
-
 
 class Player:
     mass = 1.5
     gravity = 750
     radius = 30
     jump_force = 750
+    wall_collision_slowdown = 0.7
 
     def __init__(self, x, y, game):
         self.pos = np.array([x, y], dtype=float)
@@ -24,13 +23,13 @@ class Player:
     def check_boundaries(self):
         if self.pos[0] + Player.radius >= self.game.width:
             self.pos[0] = self.game.width - Player.radius
-            self.vel[0] *= -PLAYER_WALL_COLLISION_SLOWDOWN
+            self.vel[0] *= -Player.wall_collision_slowdown
         if self.pos[0] - Player.radius <= 0:
             self.pos[0] = Player.radius
-            self.vel[0] *= -PLAYER_WALL_COLLISION_SLOWDOWN
+            self.vel[0] *= -Player.wall_collision_slowdown
         if self.pos[1] - Player.radius <= 0:
             self.pos[1] = Player.radius
-            self.vel[1] *= -PLAYER_WALL_COLLISION_SLOWDOWN
+            self.vel[1] *= -Player.wall_collision_slowdown
 
     def push(self, target_pos):
         direction = target_pos - self.pos
