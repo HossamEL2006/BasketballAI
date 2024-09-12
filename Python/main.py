@@ -97,13 +97,6 @@ class Game:
         self.player.vel = new_player_vel
         self.basketball.vel = new_ball_vel
 
-    def render_game(self):
-        game_screen = pygame.Surface((WIDTH, HEIGHT))
-        game_screen.fill((125, 125, 125))
-        self.basketball.draw(game_screen)
-        self.player.draw(game_screen)
-        return game_screen
-
     def play_move(self, command):
         if command != "NO JUMP":
             x, y = map(float, command.split())
@@ -137,6 +130,14 @@ def update_stats(real_dt, game_fps, fps_history, speed_history):
     if len(speed_history) > capping_limit:
         speed_history = speed_history[-max(int(capping_limit), 1) :]
         fps_history = fps_history[-max(int(capping_limit), 1) :]
+
+
+def render_game(game):
+    game_screen = pygame.Surface((WIDTH, HEIGHT))
+    game_screen.fill((125, 125, 125))
+    game.basketball.draw(game_screen)
+    game.player.draw(game_screen)
+    return game_screen
 
 
 def render_ui(game, speed_history, target_game_speed, fps_history):
@@ -202,7 +203,7 @@ def play(game, window, game_speed=1):
             game.play_move("NO JUMP")
 
         # RENDER
-        window.blit(game.render_game(), (0, 0))
+        window.blit(render_game(game), (0, 0))
         window.blit(render_ui(game, speed_history, game_speed, fps_history), (0, 0))
         pygame.display.update()
 
@@ -226,7 +227,7 @@ def watch_ai_play(game, ai_script, window, game_speed=1):
         game.play_move(ai_script(game.fetch_data()))
 
         # RENDER
-        window.blit(game.render_game(), (0, 0))
+        window.blit(render_game(game), (0, 0))
         window.blit(render_ui(game, speed_history, game_speed, fps_history), (0, 0))
         pygame.display.update()
 
@@ -235,13 +236,13 @@ def main():
     window = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("BasketBall AI")
 
-    mode = "human"  # 'ai'
+    mode = "human"  # 'human' or 'ai'
 
     if mode == "human":
         # Create a new game and play it with human controls
         new_game = Game()
         play(new_game, window, game_speed=1)
-    elif mode == "ai":
+    elif mode == "human":
         # Watch an AI play a new game based on ai_functino
         ai_function = simple_ai
         new_game = Game()
