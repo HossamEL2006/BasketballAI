@@ -3,7 +3,9 @@ import pygame
 import numpy as np
 from player import Player
 from basketball import BasketBall
-from AIs.simple_ai import simple_ai
+from bots.simple_bot import simple_bot
+from point_collider import PointCollider
+from box_collider import BoxCollider
 
 # Initialize Pygame
 pygame.init()
@@ -38,19 +40,103 @@ class Game:
 
         self.moves_counter = 0
 
-    def update(self):
-        if self.check_collision():
-            self.handle_collison()
-            self.resolve_overlap()
+        self.points = []
+        self.points.extend(BoxCollider(0, 110, 6, 90, gap=5).generate_point_colliders())
+        self.points.append(PointCollider(8, 171))
+        self.points.append(PointCollider(11, 171))
+        self.points.append(PointCollider(13, 173))
+        self.points.append(PointCollider(14, 176))
+        self.points.append(PointCollider(14, 179))
+        self.points.append(PointCollider(14, 181))
+        self.points.append(PointCollider(16, 184))
+        self.points.append(PointCollider(16, 188))
+        self.points.append(PointCollider(17, 191))
+        self.points.append(PointCollider(18, 194))
+        self.points.append(PointCollider(18, 197))
+        self.points.append(PointCollider(18, 201))
+        self.points.append(PointCollider(19, 204))
+        self.points.append(PointCollider(20, 209))
+        self.points.append(PointCollider(20, 212))
+        self.points.append(PointCollider(21, 216))
+        self.points.append(PointCollider(21, 220))
+        self.points.append(PointCollider(21, 223))
+        self.points.append(PointCollider(21, 226))
+        self.points.append(PointCollider(21, 230))
+        self.points.append(PointCollider(11, 168))
+        self.points.append(PointCollider(12, 164))
+        self.points.append(PointCollider(8, 164))
+        self.points.append(PointCollider(74, 172))
+        self.points.append(PointCollider(74, 168))
+        self.points.append(PointCollider(74, 164))
+        self.points.append(PointCollider(77, 164))
+        self.points.append(PointCollider(79, 164))
+        self.points.append(PointCollider(79, 168))
+        self.points.append(PointCollider(79, 172))
+        self.points.append(PointCollider(76, 172))
+        self.points.append(PointCollider(72, 174))
+        self.points.append(PointCollider(72, 176))
+        self.points.append(PointCollider(72, 179))
+        self.points.append(PointCollider(71, 183))
+        self.points.append(PointCollider(69, 186))
+        self.points.append(PointCollider(70, 188))
+        self.points.append(PointCollider(69, 191))
+        self.points.append(PointCollider(68, 195))
+        self.points.append(PointCollider(68, 199))
+        self.points.append(PointCollider(67, 202))
+        self.points.append(PointCollider(67, 206))
+        self.points.append(PointCollider(66, 209))
+        self.points.append(PointCollider(66, 213))
+        self.points.append(PointCollider(66, 217))
+        self.points.append(PointCollider(66, 221))
+        self.points.append(PointCollider(65, 225))
+        self.points.append(PointCollider(65, 228))
+        self.points.append(PointCollider(65, 223))
 
+    def update(self):
+        # Update position & velocities
         self.player.update()
         self.basketball.update()
 
-        # speed = 1000 * self.dt / dt if dt else 0
-        # self.speed.append(speed)
-        # current_fps = 1000 / dt if dt else 0
-        # self.current_fps.append(current_fps)
-        #
+        # Collision Handeling: Player <--> ColliderPoint
+        # Find the closest collider point and compute collisions #!(NOT OPTIMISED)
+        collided_points = []
+        collided_points_distances = []
+
+        for i in self.points:
+            status, d = i.check_collision(self.player)
+            if status:
+                collided_points.append(i)
+                collided_points_distances.append(d)
+
+        if collided_points:
+            closest_collided_point = collided_points[
+                collided_points_distances.index(min(collided_points_distances))
+            ]
+            closest_collided_point.handle_collision(self.player)
+            closest_collided_point.resolve_overlap(self.player)
+
+        # Collision Handeling: BasketBall <--> ColliderPoint
+        # Find the closest collider point and compute collisions #!(NOT OPTIMISED)
+        collided_points = []
+        collided_points_distances = []
+
+        for i in self.points:
+            status, d = i.check_collision(self.basketball)
+            if status:
+                collided_points.append(i)
+                collided_points_distances.append(d)
+
+        if collided_points:
+            closest_collided_point = collided_points[
+                collided_points_distances.index(min(collided_points_distances))
+            ]
+            closest_collided_point.handle_collision(self.basketball)
+            closest_collided_point.resolve_overlap(self.basketball)
+
+        # Collision Handeling: Player <--> BasketBall
+        if self.check_collision():
+            self.handle_collison()
+            self.resolve_overlap()
 
     def check_collision(self):
         distance = np.linalg.norm(self.player.pos - self.basketball.pos)
@@ -137,6 +223,9 @@ def render_game(game):
     game_screen.fill((125, 125, 125))
     game.basketball.draw(game_screen)
     game.player.draw(game_screen)
+    game_screen.blit(pygame.transform.scale_by(pygame.image.load("basket.png"), .1), (-10, 100))
+    for i in game.points:
+        i.draw(game_screen)
     return game_screen
 
 
@@ -184,7 +273,7 @@ def play(game, window, game_speed=1):
     fps_history = []
     while running:
         # CLOCK HANDELING
-        real_dt = clock.tick(60 * game_speed)
+        real_dt = clock.tick(game.fps * game_speed)
         update_stats(real_dt, game.fps, fps_history, speed_history)
 
         # EVENT HANDELING
@@ -193,7 +282,12 @@ def play(game, window, game_speed=1):
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                was_mouse_clicked = True
+                if event.button == 1:
+                    was_mouse_clicked = True
+                else:
+                    x, y = pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1]
+                    print(f"self.points.append(PointCollider{(x, y)})")
+                    game.points.append(PointCollider(x, y))
 
         # HUMAN CONTROLS
         mouse_pos = np.array(pygame.mouse.get_pos(), dtype=float)
@@ -208,7 +302,7 @@ def play(game, window, game_speed=1):
         pygame.display.update()
 
 
-def watch_ai_play(game, ai_script, window, game_speed=1):
+def watch_bot_play(game, ai_script, window, game_speed=1):
     clock = pygame.time.Clock()
     running = True
     speed_history = []
@@ -223,7 +317,7 @@ def watch_ai_play(game, ai_script, window, game_speed=1):
             if event.type == pygame.QUIT:
                 running = False
 
-        # AI CONTROLS
+        # BOT CONTROLS
         game.play_move(ai_script(game.fetch_data()))
 
         # RENDER
@@ -236,17 +330,17 @@ def main():
     window = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("BasketBall AI")
 
-    mode = "human"  # 'human' or 'ai'
+    mode = "human"  # 'human' or 'bot'
 
     if mode == "human":
         # Create a new game and play it with human controls
-        new_game = Game()
+        new_game = Game(fps=60)
         play(new_game, window, game_speed=1)
-    elif mode == "human":
+    elif mode == "bot":
         # Watch an AI play a new game based on ai_functino
-        ai_function = simple_ai
+        ai_function = simple_bot
         new_game = Game()
-        watch_ai_play(new_game, ai_function, window)
+        watch_bot_play(new_game, ai_function, window, game_speed=1)
 
 
 if __name__ == "__main__":

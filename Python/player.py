@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Player:
-    mass = 1.5
+    mass = 1.4
     gravity = 750
     radius = 30
     jump_force = 750

@@ -6,7 +6,7 @@ class BasketBall:
     mass = 1
     gravity = 500
     radius = 20
-    wall_collision_slowdown = 0.7
+    wall_collision_slowdown = 0.5
 
     def __init__(self, x, y, game):
         self.pos = np.array([x, y], dtype=float)
